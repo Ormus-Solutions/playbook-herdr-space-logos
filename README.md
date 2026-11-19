@@ -126,8 +126,11 @@ The demo home is back as it was: yes
   again after an update. If Herdr moved the code the patch edits, it stops;
   PLAYBOOK.md says how to update the anchor.
 - `--keys` edits `keys.json`. From then on Herdr treats the file as yours and
-  stops adding its new default keys on upgrades. `undo` puts the original
-  back.
+  stops adding its new default keys on upgrades.
+- `undo` takes out only its own edits. A layout or `keys.json` that changed
+  after install (a key you added, a size Herdr saved) keeps those changes,
+  and the file from before install stays next to it as
+  `<file>.before-install`.
 - Only the sidebar and the picker get the tiles. Any other mod that draws
   space tiles keeps Herdr's letters.
 

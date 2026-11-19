@@ -46,7 +46,9 @@ DEFAULT_CONFIG = "~/.config/herdr-space-logos/spaces.json"
 DEFAULT_HOME = "~/.config/herdr-app"
 
 MARKER = ".made-by-space-logos"  # in every mod folder this tool writes
+MARKER_FROM = "from: "            # the marker's line that names the Herdr mod it was made from
 BACKUP = ".bak-space-logos"      # suffix of the one backup kept per file it changes
+BEFORE = ".before-install"       # undo keeps the backup under this name when you changed the file since
 SHIPPED_LAYOUTS = {"main", "terminals", "win98"}  # Herdr replaces these on every start
 
 ENTRY_KEYS = {"logo", "bg", "pad", "letter", "color", "text"}
@@ -303,8 +305,10 @@ def base_mod(home: Path, which: str) -> tuple[str, dict]:
     return main_js.read_text(encoding="utf-8"), json.loads(mod_json.read_text(encoding="utf-8"))
 
 
-def plan(config: Config, home: Path) -> dict[str, tuple[str, dict, int]]:
-    """Patch both mods in memory: what install would write. Writes nothing."""
+def plan(config: Config, home: Path) -> dict[str, tuple[str, str, dict, int]]:
+    """Patch both mods in memory: what install would write, per new mod: the
+    Herdr mod it is made from, its code, its mod.json and the number of edits.
+    Writes nothing."""
     block = tile_js(config)
     out = {}
     for which, name in (("spaces", config.spaces_mod), ("picker", config.picker_mod)):
@@ -312,7 +316,7 @@ def plan(config: Config, home: Path) -> dict[str, tuple[str, dict, int]]:
         code, edits = patch(src, which, block)
         meta = dict(meta)
         meta["title"] = f"{meta.get('title', which.title())} (logos)"
-        out[name] = (code, meta, edits)
+        out[name] = (which, code, meta, edits)
     return out
 
 
@@ -321,11 +325,13 @@ def build(config: Config, home: Path) -> list[str]:
     for name in planned:
         own_folder(home / "mods" / name, home)
     report = ["Built from Herdr's shipped mods (mods/spaces, mods/picker):"]
-    for name, (code, meta, edits) in planned.items():
+    for name, (which, code, meta, edits) in planned.items():
         folder = home / "mods" / name
         folder.mkdir(parents=True, exist_ok=True)
-        (folder / MARKER).write_text("Made by playbook-herdr-space-logos. "
-                                     "`space_logos.py undo` removes this folder.\n", encoding="utf-8")
+        # The "from:" line tells undo which Herdr mod to point the layout back at.
+        (folder / MARKER).write_text(f"Made by playbook-herdr-space-logos from Herdr's `{which}` mod. "
+                                     f"`space_logos.py undo` removes this folder.\n{MARKER_FROM}{which}\n",
+                                     encoding="utf-8")
         write_text(folder / "mod.json", json.dumps(meta, indent=2) + "\n")
         write_text(folder / "main.js", code)
         files = [f"main.js ({edits} edits)", "mod.json"]
@@ -370,19 +376,9 @@ def read_json(path: Path, home: Path) -> object:
         raise Stop(f"{path.relative_to(home)} is not valid JSON: line {err.lineno}, column {err.colno}")
 
 
-def layout_change(home: Path, layout: str, config: Config) -> FileChange:
-    """Point the blocks of one of your layouts at the new mods."""
-    if not LAYOUT_NAME.match(layout):
-        raise Stop(f"--layout takes the name of a layout in layouts/, like logos, not a path: {layout!r}")
-    if layout in SHIPPED_LAYOUTS:
-        raise Stop(f"{layout} is one of Herdr's own layouts, which Herdr replaces on every "
-                   f"start; clone it first: herdr-app do layout.clone "
-                   f"'{{\"name\":\"{layout}\",\"as\":\"logos\"}}', then use --layout logos")
-    path = home / "layouts" / f"{layout}.json"
-    if not path.is_file():
-        raise Stop(f"no layout at layouts/{layout}.json; clone one first (see PLAYBOOK.md)")
-    data = read_json(path, home)
-    swap = {"spaces": config.spaces_mod, "picker": config.picker_mod}
+def swap_layout(data: object, swap: dict[str, str]) -> tuple[int, int]:
+    """Change the mod of every layout block named in `swap`, in place. Returns
+    how many blocks changed, and how many already use a mod `swap` points to."""
     changed = already = 0
 
     def walk(node: object) -> None:
@@ -402,6 +398,49 @@ def layout_change(home: Path, layout: str, config: Config) -> FileChange:
                 walk(value)
 
     walk(data)
+    return changed, already
+
+
+def swap_keys(data: object, swap: dict[str, str]) -> tuple[int, int]:
+    """Change every key that opens a mod named in `swap`, in place, in both
+    forms keys.json allows. Returns how many keys changed, and how many
+    already open a mod `swap` points to."""
+    changed = already = 0
+    for section in data.values() if isinstance(data, dict) else []:
+        if not isinstance(section, dict):
+            continue
+        for key, action in section.items():
+            if isinstance(action, str) and action.startswith("mod.open:"):
+                name = action[len("mod.open:"):]
+                if name in swap:
+                    section[key] = f"mod.open:{swap[name]}"
+                    changed += 1
+                elif name in swap.values():
+                    already += 1
+            elif (isinstance(action, dict) and action.get("command") == "mod.open"
+                  and isinstance(action.get("args"), dict)):
+                name = action["args"].get("name")
+                if name in swap:
+                    action["args"]["name"] = swap[name]
+                    changed += 1
+                elif name in swap.values():
+                    already += 1
+    return changed, already
+
+
+def layout_change(home: Path, layout: str, config: Config) -> FileChange:
+    """Point the blocks of one of your layouts at the new mods."""
+    if not LAYOUT_NAME.match(layout):
+        raise Stop(f"--layout takes the name of a layout in layouts/, like logos, not a path: {layout!r}")
+    if layout in SHIPPED_LAYOUTS:
+        raise Stop(f"{layout} is one of Herdr's own layouts, which Herdr replaces on every "
+                   f"start; clone it first: herdr-app do layout.clone "
+                   f"'{{\"name\":\"{layout}\",\"as\":\"logos\"}}', then use --layout logos")
+    path = home / "layouts" / f"{layout}.json"
+    if not path.is_file():
+        raise Stop(f"no layout at layouts/{layout}.json; clone one first (see PLAYBOOK.md)")
+    data = read_json(path, home)
+    changed, already = swap_layout(data, {"spaces": config.spaces_mod, "picker": config.picker_mod})
     rel = f"layouts/{layout}.json"
     if not changed:
         if already:
@@ -417,20 +456,7 @@ def keys_change(home: Path, config: Config) -> FileChange:
     if not path.is_file():
         return FileChange(path, None, "Keys: no keys.json in the Herdr home, so the keys were left as they are")
     data = read_json(path, home)
-    changed = already = 0
-    for section in data.values() if isinstance(data, dict) else []:
-        if not isinstance(section, dict):
-            continue
-        for key, action in section.items():
-            if action == "mod.open:picker":
-                section[key] = f"mod.open:{config.picker_mod}"
-                changed += 1
-            elif (isinstance(action, dict) and action.get("command") == "mod.open"
-                  and isinstance(action.get("args"), dict) and action["args"].get("name") == "picker"):
-                action["args"]["name"] = config.picker_mod
-                changed += 1
-            elif action == f"mod.open:{config.picker_mod}":
-                already += 1
+    changed, already = swap_keys(data, {"picker": config.picker_mod})
     if not changed and already:
         return FileChange(path, None, f"Keys keys.json: already open {config.picker_mod}")
     if not changed:
@@ -464,19 +490,75 @@ def install(config: Config, home: Path, layout: str | None, keys: bool) -> list[
     return report + [apply(change) for change in changes]
 
 
+def made_from(folder: Path) -> str | None:
+    """The Herdr mod a folder was made from ("" when its marker does not say),
+    or None when this tool did not make the folder."""
+    marker = folder / MARKER
+    if not marker.is_file():
+        return None
+    for line in marker.read_text(encoding="utf-8").splitlines():
+        if line.startswith(MARKER_FROM):
+            return line[len(MARKER_FROM):].strip()
+    return ""
+
+
+@dataclass
+class Restore:
+    """How undo puts back one file it changed, worked out before anything is written."""
+    original: Path
+    backup: Path
+    data: object | None  # None: the backup goes back as it is; else the file without the tool's edits
+    report: str
+
+
+def restore_plan(backup: Path, swap: dict[str, str], home: Path) -> Restore:
+    """Take the tool's own edits out of the file. When nothing else changed
+    since install, that is the backup itself, byte for byte. When you or
+    Herdr changed the file since (a key you added, a size Herdr saved), keep
+    those changes, and keep the backup under another name so you can compare."""
+    original = backup.with_name(backup.name[: -len(BACKUP)])
+    rel = original.relative_to(home)
+    restored = Restore(original, backup, None, f"  {rel} restored from its backup")
+    if not original.is_file():
+        return restored
+    try:
+        current = json.loads(original.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as err:
+        raise Stop(f"{rel} is not valid JSON (line {err.lineno}), so undo cannot take its edits out "
+                   f"of it, and nothing was changed. Fix the file, or put its backup {rel}{BACKUP} "
+                   "in its place, then run undo again")
+    (swap_keys if original.name == "keys.json" else swap_layout)(current, swap)
+    if current == read_json(backup, home):
+        return restored
+    return Restore(original, backup, current,
+                   f"  {rel}: the logo mods are out of it, and the changes made since install "
+                   f"are kept (the file from before install: {rel}{BEFORE})")
+
+
 def undo(home: Path) -> list[str]:
-    """Remove what install did in this Herdr home: restore every file from its
-    backup first (so no layout names a missing mod), then remove the mods."""
-    report = []
-    for backup in sorted([*home.glob("layouts/*.json" + BACKUP), *home.glob("keys.json" + BACKUP)]):
-        original = backup.with_name(backup.name[: -len(BACKUP)])
-        os.replace(backup, original)
-        report.append(f"  {original.relative_to(home)} restored from its backup")
+    """Take out what install did in this Herdr home: first the files it changed
+    (so no layout names a missing mod), then the mod folders it made. Every
+    change is worked out before the first one is written."""
     mods = home / "mods"
+    made = {}
     for folder in sorted(mods.iterdir()) if mods.is_dir() else []:
-        if (folder / MARKER).is_file():
-            shutil.rmtree(folder)
-            report.append(f"  mods/{folder.name} removed")
+        base = made_from(folder)
+        if base is not None:
+            made[folder.name] = base
+    swap = {name: base for name, base in made.items() if base}  # logo-spaces -> spaces
+    backups = sorted([*home.glob("layouts/*.json" + BACKUP), *home.glob("keys.json" + BACKUP)])
+    restores = [restore_plan(backup, swap, home) for backup in backups]
+    report = []
+    for r in restores:
+        if r.data is None:
+            os.replace(r.backup, r.original)
+        else:
+            write_text(r.original, json.dumps(r.data, indent=2, ensure_ascii=False) + "\n")
+            os.replace(r.backup, r.original.with_name(r.original.name + BEFORE))
+        report.append(r.report)
+    for name in made:
+        shutil.rmtree(mods / name)
+        report.append(f"  mods/{name} removed")
     return report or ["  nothing to undo: this tool left nothing in this Herdr home"]
 
 
@@ -618,7 +700,7 @@ def main(argv: list[str] | None = None) -> int:
     home = home_path(args.home)
     sys.stdout.write(describe(config) + "\n")
     if args.command == "check":
-        for name, (_code, _meta, edits) in plan(config, home).items():
+        for name, (_which, _code, _meta, edits) in plan(config, home).items():
             print(f"mods/{name}: the patch fits ({edits} edits)")
         print("check: ok (nothing was written)")
         return 0

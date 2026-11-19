@@ -142,7 +142,8 @@ The picker opens from a key in `keys.json` (`ctrl-shift-k` by default). This
 points every key that opens Herdr's picker at the logo picker, after a
 one-time backup of `keys.json`. The trade-off: once you edit `keys.json`,
 Herdr treats the file as yours and stops adding its new default keys to it on
-upgrades. `undo` puts the original file back.
+upgrades. `undo` takes the tool's edits out again and keeps any key you add
+in the meantime (see Undo).
 
 ```bash
 python3 src/space_logos.py install --layout logos --keys
@@ -232,10 +233,17 @@ shape into the stand-in mods, and run `./check.sh`.
 1. Switch the window back to Herdr's own layout, so it never shows a layout
    that names a removed mod:
    `herdr-app do layout.switch '{"name":"main"}'`
-2. Remove what `install` did: `python3 src/space_logos.py undo`. It restores
-   every file it changed from its backup (the layout, `keys.json`), then
-   deletes the mod folders it made (each one carries a `.made-by-space-logos`
-   file; it deletes no other folder).
+2. Remove what `install` did: `python3 src/space_logos.py undo`. It first
+   takes its own edits out of the files it changed (the layout, `keys.json`):
+   their blocks and keys point at Herdr's `spaces` and `picker` again. A file
+   that nothing else changed since install goes back byte for byte from its
+   backup. A file that you or Herdr changed since (a key you added, a sidebar
+   size Herdr saved) keeps those changes, and its backup stays next to it as
+   `<file>.before-install`, so you can compare: undo says which files it
+   kept that way. Then it deletes the mod folders it made (each one carries a
+   `.made-by-space-logos` file; it deletes no other folder). If one of the
+   files is not valid JSON, undo stops before it changes anything and says
+   which.
 3. If you made the `logos` layout only for this, delete it:
    `rm "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/layouts/logos.json"`.
 4. Delete the config folder: `rm -r ~/.config/herdr-space-logos`.
@@ -251,8 +259,10 @@ Expected: `0`
 - Writes, only inside the Herdr home: the two new mod folders, the layout you
   name and `keys.json` (each with one backup next to it, kept from the first
   change). `--layout` takes a name in `layouts/`, never a path: a name with a
-  slash stops the tool. `preview` writes the SVG file you name. The demo and the tests
-  write only to temporary folders.
+  slash stops the tool. `undo` writes those same files, and a
+  `<file>.before-install` next to a file that changed after install.
+  `preview` writes the SVG file you name. The demo and the tests write only
+  to temporary folders.
 - Never: changes Herdr's own mods or layouts (`main`, `terminals`, `win98`),
   overwrites a folder it did not make, runs a program (not `herdr-app`, not
   `hc`), uses the network, or reads secrets. The mods it writes run no

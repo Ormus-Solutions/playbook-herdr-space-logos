@@ -295,6 +295,46 @@ class UndoTest(TempHome):
         self.assertTrue(mine.is_dir())
         self.assertEqual(lines, ["  mods/logo-picker removed", "  mods/logo-spaces removed"])
 
+    def edit_json(self, rel: str, change) -> None:
+        path = self.home / rel
+        data = json.loads(path.read_text(encoding="utf-8"))
+        change(data)
+        path.write_text(json.dumps(data), encoding="utf-8")
+
+    def test_undo_keeps_a_key_added_after_install(self) -> None:
+        original = (self.home / "keys.json").read_bytes()
+        sl.install(self.config, self.home, layout="logos", keys=True)
+        self.edit_json("keys.json", lambda d: d["global"].update({"ctrl-shift-y": "tab.close"}))
+        lines = sl.undo(self.home)
+        keys = json.loads((self.home / "keys.json").read_text())["global"]
+        self.assertEqual(keys["ctrl-shift-y"], "tab.close")
+        self.assertEqual(keys["ctrl-shift-k"], "mod.open:picker")
+        self.assertEqual(keys["ctrl-space a"]["args"]["name"], "picker")
+        self.assertEqual((self.home / ("keys.json" + sl.BEFORE)).read_bytes(), original)
+        self.assertFalse((self.home / ("keys.json" + sl.BACKUP)).exists())
+        self.assertIn("  keys.json: the logo mods are out of it, and the changes made since "
+                      "install are kept (the file from before install: keys.json.before-install)", lines)
+
+    def test_undo_keeps_a_layout_change_herdr_made_after_install(self) -> None:
+        sl.install(self.config, self.home, layout="logos", keys=False)
+        self.edit_json("layouts/logos.json", lambda d: d["children"][0].update({"size": {"px": 300}}))
+        sl.undo(self.home)
+        text = (self.home / "layouts" / "logos.json").read_text()
+        layout = json.loads(text)
+        self.assertEqual(layout["children"][0]["size"], {"px": 300})
+        self.assertEqual(layout["children"][0]["children"][0]["content"]["mod"], "spaces")
+        self.assertNotIn("logo-", text)
+        self.assertFalse((self.home / "mods" / "logo-spaces").exists())
+
+    def test_undo_with_a_broken_file_stops_before_it_writes(self) -> None:
+        sl.install(self.config, self.home, layout="logos", keys=True)
+        (self.home / "keys.json").write_text("{ broken", encoding="utf-8")
+        before = sl.snapshot(self.home)
+        with self.assertRaises(SystemExit) as caught:
+            sl.undo(self.home)
+        self.assertIn("keys.json is not valid JSON", str(caught.exception))
+        self.assertEqual(sl.snapshot(self.home), before)
+
     def test_nothing_to_undo(self) -> None:
         self.assertIn("nothing to undo", sl.undo(self.home)[0])
 
