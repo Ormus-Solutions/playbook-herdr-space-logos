@@ -271,8 +271,9 @@ shape into the stand-in mods, and run `./check.sh`.
    `.made-by-space-logos` file; it deletes no other folder). If one of the
    files is not valid JSON, undo stops before it changes anything and says
    which.
-3. If you made the `logos` layout only for this, delete it:
-   `rm "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/layouts/logos.json"`.
+3. If you made the `logos` layout only for this, delete it, with the
+   `logos.json.before-install` that undo may have kept:
+   `rm -f "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/layouts/logos.json"*`.
 4. Delete the config folder: `rm -r ~/.config/herdr-space-logos`.
 
 Verify: `test -z "$(ls "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods" | grep '^logo-')" && echo none`
