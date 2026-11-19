@@ -37,7 +37,7 @@ pictures.
 |---|---|---|
 | Python | 3.11 or newer | `python3 --version` |
 | git | any recent version | `git --version` |
-| Herdr desktop app | its mods as in 0.1.15, where the anchors come from; a newer one works while `check` says the patch fits | `command -v herdr-app` |
+| [Herdr](https://herdr.dev) desktop app | its mods as in 0.1.15, where the anchors come from; a newer one works while `check` says the patch fits | `command -v herdr-app` |
 | A Herdr home with Herdr's mods | written by the desktop app on every start | `ls ~/.config/herdr-app/mods/spaces/main.js` |
 | node (optional) | any recent version, for two of the tests | `node --version` |
 
@@ -155,7 +155,7 @@ The demo home is back as it was: yes
 | `examples/preview.svg` | the picture above, made from the synthetic config |
 | `tests/` | offline tests that pin the behaviour on the synthetic data |
 | `check.sh` | the one gate: tests, placeholders, scrub. The scrub's client-name check reads your own deny-list (`$PLAYBOOK_DENYLIST`, default `~/.config/playbooks/denylist.txt`); without one it says "deny-list: 0 entries" and skips that check |
-| `scripts/scrub.sh` | the scrub check, copied from playbook-packaging |
+| `scripts/scrub.sh` | the scrub check, copied unchanged from playbook-packaging |
 | `CHANGELOG.md` | what changed, newest first |
 
 ## Credits
@@ -165,4 +165,7 @@ Made by Ormus (Ormus Solutions). It patches your own copy of Herdr's
 the Apache License 2.0); this repo carries none of Herdr's code beyond the
 few lines the patch looks for (the anchors), copied from Herdr 0.1.15 under
 that license.
-Packaged with playbook-packaging. MIT license.
+
+Packaged with
+[playbook-packaging](https://github.com/Ormus-Solutions/playbook-packaging),
+the playbook that sets how these playbook repos are packaged. MIT license.
