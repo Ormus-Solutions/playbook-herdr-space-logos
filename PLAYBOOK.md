@@ -12,7 +12,9 @@ Steps 5 to 8 change the person's Herdr window: ask before each of them.
 
 The Herdr desktop app shows a logo, or a letter tile with a chosen letter and
 color, in front of each space the person lists, in the spaces sidebar and in
-the Go to picker. Every other space looks as it did. One command undoes it.
+the Go to picker. Every other space keeps Herdr's color and letter; with a
+`separator` in the config (the example has one), its letter is the first one
+after the separator instead. One command undoes it.
 
 ## Before you start
 
@@ -25,7 +27,7 @@ from one command to the next.
 |---|---|---|---|
 | Python 3.11 or newer | `python3 -c 'import sys; print(sys.version_info >= (3, 11))'` | `True` | install a newer Python from python.org or your package manager |
 | git | `git --version` | a version line | install git |
-| The Herdr desktop app's command line | `command -v herdr-app` | a path | install the desktop app from herdr.dev; the terminal app `herdr` has no mods, so it cannot show logos |
+| The Herdr desktop app's command line | `command -v herdr-app` | a path | install the desktop app with the install script from herdr.dev: it puts `herdr-app` in `~/.local/bin`, so make sure that folder is on your `PATH`. On macOS after a drag-and-drop install of the app, link the command yourself: `mkdir -p ~/.local/bin && ln -s /Applications/Herdr.app/Contents/MacOS/Herdr ~/.local/bin/herdr-app` (or `~/Applications/Herdr.app/...` if the app is there). The terminal app `herdr` has no mods, so it cannot show logos |
 | A Herdr home with Herdr's own mods in it | `test -f "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods/spaces/main.js" && echo ok` | `ok` | start the desktop app once (it writes its mods on every start), or set `HERDR_APP_HOME` to the right folder |
 | node (optional) | `node --version` | a version line | nothing to do: two tests are skipped without it |
 
@@ -148,11 +150,14 @@ Verify: `herdr-app status`
 Expected: the layout `logos`, and no error from files or mods. In the window, each space you listed shows its logo or letter tile.
 
 `herdr-app shot` saves a picture of the window if you want to show someone.
+The picture shows every space name and every pane, and those names are often
+client or project names: look at it before you share it, or take it on a
+Herdr home with made-up spaces.
 
 ### 8. Optional: the Go to picker too
 
-The picker opens from a key in `keys.json` (`ctrl-shift-k` by default). This
-points every key that opens Herdr's picker at the logo picker, after a
+The picker opens from a key in `keys.json`: by default `ctrl-shift-k` on
+Linux and Windows, `cmd-p` on macOS. This points every key that opens Herdr's picker at the logo picker, after a
 one-time backup of `keys.json`. The trade-off: once you edit `keys.json`,
 Herdr treats the file as yours and stops adding its new default keys to it on
 upgrades. `undo` takes the tool's edits out again and keeps any key you add
@@ -162,8 +167,15 @@ in the meantime (see Undo).
 python3 src/space_logos.py install --layout logos --keys
 ```
 
-Verify: `grep -c 'mod.open:logo-picker' "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/keys.json"`
-Expected: a number, 1 or more. Press `ctrl-shift-k`: the space headers show the same tiles as the sidebar.
+Verify: `grep -n 'logo-picker' "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/keys.json"`
+Expected: one line or more, such as `"ctrl-shift-k": "mod.open:logo-picker"`.
+Press the key that line names: the space headers in the picker show the same
+tiles as the sidebar. (A line that shows only `"name": "logo-picker"` belongs
+to a key written in the longer form; its key is a few lines above it.)
+
+The search button at the top of the sidebar still opens Herdr's own picker,
+with letters: it is part of another Herdr mod (`workspace-chrome`), which this
+playbook does not copy. Open the picker with the key.
 
 ## Adapt it
 
@@ -239,7 +251,9 @@ shape into the stand-in mods, and run `./check.sh`.
 - `./check.sh` prints `check: ok`.
 - `python3 src/space_logos.py check` lists your spaces and ends with `check: ok (nothing was written)`.
 - `herdr-app check` passes for `mods/logo-spaces` and `mods/logo-picker` in the Herdr home.
-- In the window, the spaces you listed show their logo or letter tile, and the others look as before.
+- In the window, the spaces you listed show their logo or letter tile. The
+  others keep Herdr's color and letter, or, with a `separator`, show the
+  first letter after it.
 
 ## Undo
 
@@ -261,8 +275,8 @@ shape into the stand-in mods, and run `./check.sh`.
    `rm "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/layouts/logos.json"`.
 4. Delete the config folder: `rm -r ~/.config/herdr-space-logos`.
 
-Verify: `ls "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods" | grep -c '^logo-'`
-Expected: `0`
+Verify: `test -z "$(ls "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods" | grep '^logo-')" && echo none`
+Expected: `none` (and exit code 0)
 
 ## Safety
 

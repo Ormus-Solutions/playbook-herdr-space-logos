@@ -1,5 +1,5 @@
 {
-  "$comment": "Synthetic example. Each key is a space's exact name in Herdr. A space gets a logo (a file in logos/, with an optional bg tile color and pad margin in px) or a letter tile (letter, color, text). Spaces not listed keep Herdr's tile.",
+  "$comment": "Synthetic example. Each key is a space's exact name in Herdr. A space gets a logo (a file in logos/, with an optional bg tile color and pad margin in px) or a letter tile (letter, color, text). Spaces not listed keep Herdr's color; with the separator below, their letter is the first one after it (delete the separator to keep Herdr's letter).",
   "separator": " · ",
   "spaces": {
     "acme · WEB": { "logo": "acme.svg" },

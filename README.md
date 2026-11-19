@@ -58,8 +58,9 @@ Read PLAYBOOK.md in this repo and follow it step by step. After each step,
 run its "Verify:" command and compare the result with "Expected:". If they
 differ, stop and tell me what you saw. Ask me which spaces get which logo or
 letter, and where my logo files are. Ask me before any step that changes
-something outside this repo (my Herdr window, my Herdr home). When you finish,
-run the "Done when" checks and show me their output.
+something outside this repo and its config folder ~/.config/herdr-space-logos
+(my Herdr window, my Herdr home). When you finish, run the "Done when" checks
+and show me their output.
 ```
 
 ### Do it by hand
@@ -68,10 +69,11 @@ run the "Done when" checks and show me their output.
 2. Make your config:
    `mkdir -p ~/.config/herdr-space-logos/logos`, then copy
    `examples/spaces.json` there and the logos you want into `logos/`.
-3. Get your space names with `herdr-app ls` and write them into
-   `spaces.json`, each with `{ "logo": "file.svg" }` or
-   `{ "letter": "D", "color": "#3a7bd5" }`.
-4. Check it, writing nothing: `python3 src/space_logos.py check`.
+3. Get your space names from `herdr-app ls` (PLAYBOOK.md step 3 prints only
+   the names) and copy them into `spaces.json`, each with
+   `{ "logo": "file.svg" }` or `{ "letter": "D", "color": "#3a7bd5" }`.
+4. Check it, writing nothing:
+   `herdr-app ls | python3 src/space_logos.py check --ls -`.
 5. Copy Herdr's layout: `herdr-app do layout.clone '{"name":"main","as":"logos"}'`.
 6. Install: `python3 src/space_logos.py install --layout logos` (add `--keys`
    for the Go to picker too).
@@ -133,6 +135,12 @@ The demo home is back as it was: yes
   `<file>.before-install`.
 - Only the sidebar and the picker get the tiles. Any other mod that draws
   space tiles keeps Herdr's letters.
+- The search button at the top of the sidebar still opens Herdr's own
+  picker, with letters (it belongs to another Herdr mod). Open the logo
+  picker with its key: `ctrl-shift-k` on Linux and Windows, `cmd-p` on macOS.
+- With a `separator` in the config (the example has one), a space you did
+  not list shows the first letter after the separator, not the first letter
+  of its name. Delete the separator to keep Herdr's letter for those.
 
 ## Files
 
@@ -146,13 +154,15 @@ The demo home is back as it was: yes
 | `examples/expected-output.txt` | what `bash examples/run.sh` must print |
 | `examples/preview.svg` | the picture above, made from the synthetic config |
 | `tests/` | offline tests that pin the behaviour on the synthetic data |
-| `check.sh` | the one gate: tests, placeholders, scrub |
+| `check.sh` | the one gate: tests, placeholders, scrub. The scrub's client-name check reads your own deny-list (`$PLAYBOOK_DENYLIST`, default `~/.config/playbooks/denylist.txt`); without one it says "deny-list: 0 entries" and skips that check |
 | `scripts/scrub.sh` | the scrub check, copied from playbook-packaging |
 | `CHANGELOG.md` | what changed, newest first |
 
 ## Credits
 
 Made by Ormus (Ormus Solutions). It patches your own copy of Herdr's
-`spaces` and `picker` mods ([Herdr](https://herdr.dev) is open source); this
-repo carries none of Herdr's code beyond the few lines the patch looks for.
+`spaces` and `picker` mods ([Herdr](https://herdr.dev) is open source, under
+the Apache License 2.0); this repo carries none of Herdr's code beyond the
+few lines the patch looks for (the anchors), copied from Herdr 0.1.15 under
+that license.
 Packaged with playbook-packaging. MIT license.
