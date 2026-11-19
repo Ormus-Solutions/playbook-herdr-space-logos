@@ -610,7 +610,7 @@ def describe(config: Config) -> str:
     return "\n".join(lines) + "\n"
 
 
-def svg_el(parent: ET.Element | None, tag: str, **attrs: str) -> ET.Element:
+def svg_el(parent: ET.Element | None, tag: str, **attrs: str | float) -> ET.Element:
     attrib = {k.rstrip("_").replace("_", "-"): str(v) for k, v in attrs.items()}
     if parent is None:
         return ET.Element(f"{{{SVG_NS}}}{tag}", attrib)
