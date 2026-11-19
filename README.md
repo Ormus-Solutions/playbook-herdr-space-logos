@@ -50,6 +50,11 @@ standard library.
 
 ### Hand it to your agent
 
+```bash
+git clone https://github.com/Ormus-Solutions/playbook-herdr-space-logos
+cd playbook-herdr-space-logos
+```
+
 Clone this repo, open your coding agent (Claude Code, Codex, Grok) inside the
 clone, and paste this:
 
