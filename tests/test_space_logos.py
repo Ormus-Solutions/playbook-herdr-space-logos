@@ -41,6 +41,21 @@ class TempHome(unittest.TestCase):
         self.config_file.write_text(json.dumps(data), encoding="utf-8")
         return self.config_file
 
+    def base(self, which: str) -> str:
+        return (self.home / "mods" / which / "main.js").read_text(encoding="utf-8")
+
+    def multi_line(self, which: str, every_import: bool = True) -> str:
+        """The base mod with its gpui-kit import (or every import) written over
+        several lines, with a trailing comma."""
+        src = self.base(which).replace('import { View, div, svg } from "gpui-kit";',
+                                       'import {\n  View,\n  div,\n  svg,\n} from "gpui-kit";')
+        if not every_import:
+            return src
+        src = src.replace('import { v_flex, h_flex } from "gpui-base";',
+                          'import {\n  v_flex,\n  h_flex,\n} from "gpui-base";')
+        return src.replace('import { spaces, theme } from "herdr";',
+                           'import {\n  spaces,\n  theme,\n} from "herdr";')
+
     def stops(self, data: dict, says: str) -> None:
         with self.assertRaises(SystemExit) as caught:
             sl.load_config(self.write_config(data))
@@ -110,9 +125,6 @@ class LetterTest(unittest.TestCase):
 
 
 class PatchTest(TempHome):
-    def base(self, which: str) -> str:
-        return (self.home / "mods" / which / "main.js").read_text(encoding="utf-8")
-
     def test_both_mods_get_three_edits(self) -> None:
         block = sl.tile_js(self.config)
         for which in ("spaces", "picker"):
@@ -140,6 +152,17 @@ class PatchTest(TempHome):
         with self.assertRaises(SystemExit) as caught:
             sl.patch(code, "picker", sl.tile_js(self.config))
         self.assertIn("already patched", str(caught.exception))
+
+    def test_a_multi_line_import_with_a_trailing_comma_gets_image(self) -> None:
+        for which in ("spaces", "picker"):
+            for every in (False, True):
+                with self.subTest(which=which, every_import=every):
+                    code, edits = sl.patch(self.multi_line(which, every), which, sl.tile_js(self.config))
+                    self.assertEqual(edits, 3)
+                    self.assertIn('  svg, image } from "gpui-kit";', code)
+                    self.assertNotIn(",,", code)
+                    # the block goes after the last import, not inside one
+                    self.assertIn('from "herdr";\n' + sl.BLOCK_START, code)
 
     def test_an_image_import_already_there_is_kept(self) -> None:
         src = self.base("spaces").replace("{ View, div, svg }", "{ View, div, svg, image }")
@@ -301,6 +324,15 @@ class NodeTest(TempHome):
             shutil.copyfile(self.home / "mods" / name / "main.js", copy)
             done = subprocess.run(["node", "--check", str(copy)], capture_output=True, text=True)
             self.assertEqual(done.returncode, 0, done.stderr)
+
+    def test_a_patched_multi_line_import_is_valid_javascript(self) -> None:
+        for which in ("spaces", "picker"):
+            for every in (False, True):
+                code, _ = sl.patch(self.multi_line(which, every), which, sl.tile_js(self.config))
+                copy = self.tmp / f"{which}-{every}.mjs"
+                copy.write_text(code, encoding="utf-8")
+                done = subprocess.run(["node", "--check", str(copy)], capture_output=True, text=True)
+                self.assertEqual(done.returncode, 0, f"{which}, every import: {every}\n{done.stderr}")
 
     def test_the_javascript_letter_rule_matches_the_python_one(self) -> None:
         names = ["acme · WEB", "acme ·   web", "docs", "acme · ", "élan · beta", "x·y", "", "lab · DASH · 2"]

@@ -174,20 +174,51 @@ rewrites only the folders it made and keeps the first backups).
 The two mods are copies, so they do not follow Herdr updates. After you
 update Herdr, run step 6 again to rebuild them from the new shipped mods.
 
-If `check` or `install` stops with "Herdr changed its spaces mod" (or picker),
-the code the patch looks for (its anchor) moved. Nothing was written, and
-your old copies keep working. To update the anchor:
+The patch looks for three pieces of code (its anchors) in each of Herdr's
+`spaces` and `picker` mods. If `check` or `install` stops with "Herdr changed
+its spaces mod" (or picker), one of them moved, and the message names which.
+Nothing was written, and your old copies keep working.
+
+| Anchor | What the tool does there | When it is gone, the message says |
+|---|---|---|
+| The `gpui-kit` import, `import { ... } from "gpui-kit";`, on one line or several | adds `image` to it | "the anchor for the gpui-kit import" |
+| The last `import` statement | puts the logo code after it | it cannot go missing while the gpui-kit import is there |
+| The space's letter tile | puts `spaceLogoTile(...)` in its place | "the anchor for the space's letter tile" |
+
+The letter tile anchor runs from the `child(` that holds the tile's
+`h_flex()` to the parenthesis that closes it. In Herdr 0.1.15 the `spaces`
+mod has it as one line:
+
+```js
+el.child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_bold().text_color("#ffffff").child([...w.name][0]?.toUpperCase() ?? "?"))
+```
+
+and the `picker` mod as:
+
+```js
+.child(h_flex().size(18).rounded(5).bg(spaceColor(t, r.w)).items_center().justify_center().text_size(10.5).font_bold().text_color("#ffffff").child([...r.w.name][0]?.toUpperCase() ?? "?"))
+```
+
+To update the letter tile anchor:
 
 1. Open Herdr's shipped mod, for example
    `"${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods/spaces/main.js"`, and
-   find the code that draws a space's letter tile: search for
-   `toUpperCase() ?? "?"`.
-2. Copy that exact expression into `TILE_EDITS` in `src/space_logos.py` (the
-   first string of the pair), and keep the replacement (the second string)
-   passing the same two values: the space and its color.
+   search for `toUpperCase() ?? "?"`.
+2. Copy the whole expression, from `el.child(h_flex()` (spaces) or
+   `.child(h_flex()` (picker) to the parenthesis that closes it, into
+   `TILE_EDITS` in `src/space_logos.py` (the first string of the pair). Keep
+   the replacement (the second string) passing the same two values: the
+   space and its color.
 3. Put the same new line in the stand-in mod under `examples/herdr-home/mods/`,
    so the tests match the new Herdr.
 4. Run `./check.sh`, then step 2's check.
+
+When the message names the gpui-kit import, the mod no longer has exactly
+one `import { ... } from "gpui-kit";` statement. Look at the imports at the
+top of the shipped mod. If Herdr now splits them in two statements, or
+imports from another module name, change `GPUI_IMPORT` in
+`src/space_logos.py` to match the statement that holds `View`, write the new
+shape into the stand-in mods, and run `./check.sh`.
 
 ## Done when
 
