@@ -6,6 +6,8 @@ of examples/herdr-home. The two node tests run only when node is installed.
 """
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import shutil
 import subprocess
@@ -337,6 +339,54 @@ class UndoTest(TempHome):
 
     def test_nothing_to_undo(self) -> None:
         self.assertIn("nothing to undo", sl.undo(self.home)[0])
+
+
+class CheckTest(TempHome):
+    """`check` must stop wherever `install` would stop, and write nothing."""
+
+    def check(self, *extra: str) -> str:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = sl.main(["check", "--config", str(self.config_file), "--home", str(self.home), *extra])
+        self.assertEqual(code, 0)
+        return out.getvalue()
+
+    def check_stops(self, says: str, *extra: str) -> None:
+        with self.assertRaises(SystemExit) as caught, contextlib.redirect_stdout(io.StringIO()):
+            self.check(*extra)
+        self.assertIn(says, str(caught.exception))
+
+    def test_check_stops_on_a_folder_it_did_not_make(self) -> None:
+        (self.home / "mods" / "logo-spaces").mkdir()
+        self.check_stops("did not make it")
+
+    def test_check_checks_the_layout_and_keys_it_is_given(self) -> None:
+        self.check_stops("clone it first", "--layout", "main")
+        self.check_stops("no layout at layouts/nope.json", "--layout", "nope")
+        (self.home / "keys.json").write_text("{ not json", encoding="utf-8")
+        self.check_stops("keys.json is not valid JSON", "--keys")
+
+    def test_check_says_what_install_will_change_and_writes_nothing(self) -> None:
+        before = sl.snapshot(self.home)
+        out = self.check("--layout", "logos", "--keys")
+        self.assertEqual(sl.snapshot(self.home), before)
+        self.assertIn("layouts/logos.json: install will point it at the logo mods", out)
+        self.assertIn("keys.json: install will point it at the logo mods", out)
+        self.assertTrue(out.endswith("check: ok (nothing was written)\n"))
+
+    def test_check_compares_the_names_with_herdr_app_ls(self) -> None:
+        ls = self.tmp / "ls.json"
+        names = [n for n in self.config.spaces if n != "qa"] + ["acme · WEB2"]
+        ls.write_text(json.dumps({"spaces": [{"id": str(i), "name": n, "tabs": []}
+                                             for i, n in enumerate(names)], "recent": []}))
+        out = self.check("--ls", str(ls))
+        self.assertIn("spaces.json: no open space is named 'qa'", out)
+        self.assertEqual(out.count("no open space is named"), 1)
+        names.append("qa")
+        ls.write_text(json.dumps({"spaces": [{"name": n} for n in names]}))
+        self.assertIn("every name in spaces.json matches an open space", self.check("--ls", str(ls)))
+        ls.write_text("no Herdr window")
+        self.check_stops("the output of herdr-app ls", "--ls", str(ls))
 
 
 class ExampleTest(unittest.TestCase):

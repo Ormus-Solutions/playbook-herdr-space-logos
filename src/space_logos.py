@@ -16,7 +16,7 @@ broken mod. Your last good copy keeps working until you update the anchor.
 
 Usage:
     python3 src/space_logos.py --demo
-    python3 src/space_logos.py check   [--config FILE] [--home DIR]
+    python3 src/space_logos.py check   [--config FILE] [--home DIR] [--layout NAME] [--keys] [--ls FILE]
     python3 src/space_logos.py install [--config FILE] [--home DIR] [--layout NAME] [--keys]
     python3 src/space_logos.py undo    [--home DIR]
     python3 src/space_logos.py preview [--config FILE] --svg FILE
@@ -320,10 +320,7 @@ def plan(config: Config, home: Path) -> dict[str, tuple[str, str, dict, int]]:
     return out
 
 
-def build(config: Config, home: Path) -> list[str]:
-    planned = plan(config, home)
-    for name in planned:
-        own_folder(home / "mods" / name, home)
+def build(config: Config, home: Path, planned: dict[str, tuple[str, str, dict, int]]) -> list[str]:
     report = ["Built from Herdr's shipped mods (mods/spaces, mods/picker):"]
     for name, (which, code, meta, edits) in planned.items():
         folder = home / "mods" / name
@@ -480,13 +477,24 @@ def use_in_keys(home: Path, config: Config) -> str:
     return apply(keys_change(home, config))
 
 
-def install(config: Config, home: Path, layout: str | None, keys: bool) -> list[str]:
-    # Work out every change first, so a wrong layout name or a broken file
-    # stops the install before anything is written.
+def prepare(config: Config, home: Path, layout: str | None,
+            keys: bool) -> tuple[dict[str, tuple[str, str, dict, int]], list[FileChange]]:
+    """Everything install will do, worked out and checked, and nothing written.
+    check runs this too, so check stops wherever install would stop."""
+    planned = plan(config, home)
+    for name in planned:
+        own_folder(home / "mods" / name, home)
     changes = [layout_change(home, layout, config)] if layout else []
     if keys:
         changes.append(keys_change(home, config))
-    report = build(config, home)  # the mods before the layout: a layout must never name a missing mod
+    return planned, changes
+
+
+def install(config: Config, home: Path, layout: str | None, keys: bool) -> list[str]:
+    # Work out every change first, so a wrong layout name, a broken file or a
+    # folder this tool did not make stops the install before anything is written.
+    planned, changes = prepare(config, home, layout, keys)
+    report = build(config, home, planned)  # the mods before the layout: a layout must never name a missing mod
     return report + [apply(change) for change in changes]
 
 
@@ -560,6 +568,23 @@ def undo(home: Path) -> list[str]:
         shutil.rmtree(mods / name)
         report.append(f"  mods/{name} removed")
     return report or ["  nothing to undo: this tool left nothing in this Herdr home"]
+
+
+def open_space_names(text: str) -> set[str]:
+    """The space names in the output of `herdr-app ls` (JSON with a "spaces" list)."""
+    try:
+        return {space["name"] for space in json.loads(text)["spaces"]}
+    except (json.JSONDecodeError, KeyError, TypeError):
+        raise Stop("--ls needs the output of herdr-app ls (JSON with a \"spaces\" list); "
+                   "is the Herdr window open?")
+
+
+def name_report(config: Config, open_names: set[str]) -> list[str]:
+    """A line for each space in spaces.json that no open space is named: a typo
+    there leaves that space without its tile, and nothing else says so."""
+    lines = [f"spaces.json: no open space is named {name!r}; copy the name from herdr-app ls"
+             for name in config.spaces if name not in open_names]
+    return lines or [f"every name in spaces.json matches an open space ({len(config.spaces)})"]
 
 
 # ---- what it looks like ------------------------------------------------------
@@ -676,9 +701,12 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--config", help=f"the spaces.json (default: $SPACE_LOGOS_CONFIG or {DEFAULT_CONFIG})")
         if name != "preview":
             p.add_argument("--home", help=f"the Herdr app home (default: $HERDR_APP_HOME or {DEFAULT_HOME})")
-        if name == "install":
+        if name in ("check", "install"):
             p.add_argument("--layout", help="also point this layout of yours (a clone) at the new mods")
             p.add_argument("--keys", action="store_true", help="also point the keys that open the picker at the new one")
+        if name == "check":
+            p.add_argument("--ls", metavar="FILE", help="the output of herdr-app ls ('-' for a pipe): "
+                           "say which names in spaces.json match no open space")
         if name == "preview":
             p.add_argument("--svg", required=True, type=Path, help="the SVG file to write")
     args = parser.parse_args(argv)
@@ -700,8 +728,16 @@ def main(argv: list[str] | None = None) -> int:
     home = home_path(args.home)
     sys.stdout.write(describe(config) + "\n")
     if args.command == "check":
-        for name, (_which, _code, _meta, edits) in plan(config, home).items():
+        planned, changes = prepare(config, home, args.layout, args.keys)
+        for name, (_which, _code, _meta, edits) in planned.items():
             print(f"mods/{name}: the patch fits ({edits} edits)")
+        for change in changes:
+            rel = change.path.relative_to(home)
+            print(f"{rel}: install will point it at the logo mods (with a backup)"
+                  if change.data is not None else change.report)
+        if args.ls:
+            text = sys.stdin.read() if args.ls == "-" else Path(args.ls).read_text(encoding="utf-8")
+            print("\n".join(name_report(config, open_space_names(text))))
         print("check: ok (nothing was written)")
         return 0
     print(f"Install into the Herdr home {home}:")

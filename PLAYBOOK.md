@@ -66,14 +66,18 @@ below before you go on.
 ### 3. Find the exact names of your spaces
 
 Logos go by a space's exact name, as the sidebar shows it, spaces and dots
-included.
+included. `herdr-app ls` prints the open window's spaces, tabs and terminals
+as JSON; this prints only the space names, one per line:
 
 ```bash
-herdr-app ls
+herdr-app ls | python3 -c 'import json, sys; print("\n".join(s["name"] for s in json.load(sys.stdin)["spaces"]))'
 ```
 
-Verify: `herdr-app ls | head -n 20`
-Expected: your spaces, with their tabs and terminals. Note each name you want a logo for.
+Verify: the same command.
+Expected: every space in the sidebar, one name per line. Copy the names you
+want a tile for from this output into the config in step 4; do not type
+them, because a name like `acme · WEB` has a middle dot that is easy to get
+wrong.
 
 ### 4. Write your spaces and logos into the config
 
@@ -96,8 +100,12 @@ first letter of the name.
 
 Delete the example logos you do not use.
 
-Verify: `python3 src/space_logos.py check`
-Expected: one line per space of yours with the tile it gets, then `check: ok (nothing was written)`.
+Verify: `herdr-app ls | python3 src/space_logos.py check --ls -`
+Expected: one line per space of yours with the tile it gets, then
+`every name in spaces.json matches an open space (N)`, then
+`check: ok (nothing was written)`. A line `no open space is named ...` is a
+name with a typo, or a space that is not open now: copy the name again from
+step 3.
 
 ### 5. Clone Herdr's main layout
 
@@ -121,6 +129,11 @@ logos) and `mods/logo-picker/`, made from Herdr's own `spaces` and `picker`
 mods with three exact edits each. Then it points the `logos` layout at them,
 after a one-time backup of the layout file. The sidebar changes within a
 second: Herdr reloads mods and layouts when their files change.
+
+`install` checks everything before it writes the first file, and writes
+nothing when one check fails. To see those checks and what it will change
+first, run `python3 src/space_logos.py check --layout logos`; it ends with
+`check: ok (nothing was written)`.
 
 ```bash
 python3 src/space_logos.py install --layout logos
