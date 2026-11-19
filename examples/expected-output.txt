@@ -1,0 +1,24 @@
+Space tiles from spaces.json (separator " · "):
+
+  acme · WEB       logo acme.svg
+  acme · API       logo acme.svg
+  demo-api         logo peak.svg on #1d2b4f, 3 px margin
+  lab · DASHBOARD  logo orbit.svg
+  docs             letter D on #3a7bd5
+  web · STAGING    letter S on #c2410c
+  qa               letter QA on #6d4bc4
+  any other space  letter: its first after the separator, on Herdr's color for it
+
+Install into a copy of examples/herdr-home (a synthetic Herdr home):
+Built from Herdr's shipped mods (mods/spaces, mods/picker):
+  mods/logo-spaces/  main.js (3 edits), mod.json, logos/acme.svg, logos/orbit.svg, logos/peak.svg
+  mods/logo-picker/  main.js (3 edits), mod.json
+Layout layouts/logos.json: 1 block now uses the logo mods (backup: layouts/logos.json.bak-space-logos)
+Keys keys.json: 2 keys now open logo-picker (backup: keys.json.bak-space-logos)
+
+Undo:
+  keys.json restored from its backup
+  layouts/logos.json restored from its backup
+  mods/logo-picker removed
+  mods/logo-spaces removed
+The demo home is back as it was: yes

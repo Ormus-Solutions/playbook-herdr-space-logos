@@ -1,0 +1,13 @@
+{
+  "$comment": "Synthetic example. Each key is a space's exact name in Herdr. A space gets a logo (a file in logos/, with an optional bg tile color and pad margin in px) or a letter tile (letter, color, text). Spaces not listed keep Herdr's tile.",
+  "separator": " · ",
+  "spaces": {
+    "acme · WEB": { "logo": "acme.svg" },
+    "acme · API": { "logo": "acme.svg" },
+    "demo-api": { "logo": "peak.svg", "bg": "#1d2b4f", "pad": 3 },
+    "lab · DASHBOARD": { "logo": "orbit.svg" },
+    "docs": { "letter": "D", "color": "#3a7bd5" },
+    "web · STAGING": { "color": "#c2410c" },
+    "qa": { "letter": "QA", "color": "#6d4bc4" }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "global": {
+    "ctrl-shift-k": "mod.open:picker",
+    "ctrl-shift-t": "tab.new",
+    "ctrl-space a": { "command": "mod.open", "args": { "name": "picker" } }
+  },
+  "terminal": {
+    "ctrl-shift-c": "terminal.copy"
+  }
+}

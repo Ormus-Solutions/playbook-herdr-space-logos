@@ -1,0 +1,24 @@
+{
+  "id": "root",
+  "type": "row",
+  "cloned_from": { "name": "main", "version": "0.1.15" },
+  "children": [
+    {
+      "id": "sidebar",
+      "type": "column",
+      "size": { "px": 260 },
+      "children": [
+        { "id": "spaces", "type": "block", "content": { "mod": "spaces" } },
+        { "id": "agents", "type": "block", "content": { "mod": "agents" } }
+      ]
+    },
+    {
+      "id": "work",
+      "type": "column",
+      "children": [
+        { "id": "tabs", "type": "block", "size": { "px": 40 }, "content": { "mod": "tabs" } },
+        { "id": "main", "type": "block", "content": { "tab": "active" } }
+      ]
+    }
+  ]
+}
