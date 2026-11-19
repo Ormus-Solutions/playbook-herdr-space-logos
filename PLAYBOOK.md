@@ -219,7 +219,8 @@ Expected: `0`
   `keys.json` only with `--keys`.
 - Writes, only inside the Herdr home: the two new mod folders, the layout you
   name and `keys.json` (each with one backup next to it, kept from the first
-  change). `preview` writes the SVG file you name. The demo and the tests
+  change). `--layout` takes a name in `layouts/`, never a path: a name with a
+  slash stops the tool. `preview` writes the SVG file you name. The demo and the tests
   write only to temporary folders.
 - Never: changes Herdr's own mods or layouts (`main`, `terminals`, `win98`),
   overwrites a folder it did not make, runs a program (not `herdr-app`, not

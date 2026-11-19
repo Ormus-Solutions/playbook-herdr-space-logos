@@ -54,6 +54,7 @@ TOP_KEYS = {"spaces", "logos", "separator", "spaces_mod", "picker_mod"}
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 LOGO_FILE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.(svg|png)$")
 MOD_NAME = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+LAYOUT_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")  # no slash, so it stays in layouts/
 
 # The anchors: the exact code in Herdr's mods (herdr-app 0.1.15) that draws a
 # space's letter tile, and what replaces it. Each must appear exactly once.
@@ -362,6 +363,8 @@ def read_json(path: Path, home: Path) -> object:
 
 def layout_change(home: Path, layout: str, config: Config) -> FileChange:
     """Point the blocks of one of your layouts at the new mods."""
+    if not LAYOUT_NAME.match(layout):
+        raise Stop(f"--layout takes the name of a layout in layouts/, like logos, not a path: {layout!r}")
     if layout in SHIPPED_LAYOUTS:
         raise Stop(f"{layout} is one of Herdr's own layouts, which Herdr replaces on every "
                    f"start; clone it first: herdr-app do layout.clone "

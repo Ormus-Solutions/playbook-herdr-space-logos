@@ -217,6 +217,16 @@ class InstallTest(TempHome):
         self.assertIn("keys.json is not valid JSON", str(caught.exception))
         self.assertEqual(sl.snapshot(self.home), before)
 
+    def test_a_layout_name_that_is_a_path_stops(self) -> None:
+        outside = self.tmp / "outside.json"
+        outside.write_text('{"content": {"mod": "spaces"}}', encoding="utf-8")
+        before = sl.snapshot(self.tmp)
+        for name in ("../../outside", "../x", "sub/x", "/abs/x", ".hidden", ""):
+            with self.subTest(name=name), self.assertRaises(SystemExit) as caught:
+                sl.use_in_layout(self.home, name, self.config)
+            self.assertIn("not a path", str(caught.exception))
+        self.assertEqual(sl.snapshot(self.tmp), before)
+
     def test_a_layout_without_the_spaces_mod_stops(self) -> None:
         (self.home / "layouts" / "bare.json").write_text('{"id": "root", "type": "row", "children": []}')
         with self.assertRaises(SystemExit) as caught:
