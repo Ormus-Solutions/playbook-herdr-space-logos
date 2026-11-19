@@ -89,6 +89,11 @@ with yours. For each one, give either a logo or a letter tile:
   Leave out `letter` to keep the space's own letter, and `color` to keep
   Herdr's color.
 
+The example keeps `"separator": " · "`: with it, a space without its own
+letter shows the first letter after the separator (`acme · WEB` shows W),
+for every space, listed or not. Delete that line to keep Herdr's rule, the
+first letter of the name.
+
 Delete the example logos you do not use.
 
 Verify: `python3 src/space_logos.py check`

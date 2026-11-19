@@ -77,6 +77,19 @@ class ConfigTest(TempHome):
             with self.subTest(says=says):
                 self.stops(data, says)
 
+    def test_a_logo_must_be_a_real_svg_or_png(self) -> None:
+        logos = self.tmp / "logos"
+        (logos / "broken.svg").write_text("<svg><g></svg>")
+        (logos / "page.svg").write_text("<html></html>")
+        (logos / "fake.png").write_bytes(b"not a png")
+        (logos / "real.png").write_bytes(b"\x89PNG\r\n\x1a\n" + bytes(16))
+        for logo, says in (("broken.svg", "not a valid SVG"), ("page.svg", "not a valid SVG"),
+                           ("fake.png", "not a valid PNG")):
+            with self.subTest(logo=logo):
+                self.stops({"spaces": {"a": {"logo": logo}}}, says)
+        cfg = sl.load_config(self.write_config({"spaces": {"a": {"logo": "real.png"}}}))
+        self.assertIn("data:image/png;base64,", sl.preview_svg(cfg))
+
     def test_comment_keys_are_allowed(self) -> None:
         cfg = sl.load_config(self.write_config({"$comment": "hi", "spaces": {"a": {}}}))
         self.assertEqual(list(cfg.spaces), ["a"])
@@ -257,6 +270,10 @@ class ExampleTest(unittest.TestCase):
     def test_demo_prints_the_expected_output(self) -> None:
         done = subprocess.run(["bash", str(EXAMPLES / "run.sh")], capture_output=True, text=True, check=True)
         self.assertEqual(done.stdout, (EXAMPLES / "expected-output.txt").read_text(encoding="utf-8"))
+
+    def test_the_readme_shows_the_real_demo_output(self) -> None:
+        expected = (EXAMPLES / "expected-output.txt").read_text(encoding="utf-8")
+        self.assertIn("```text\n" + expected + "```", (ROOT / "README.md").read_text(encoding="utf-8"))
 
     def test_the_preview_svg_is_made_from_the_example(self) -> None:
         config = sl.load_config(EXAMPLES / "spaces.json")
